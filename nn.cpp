@@ -4,7 +4,8 @@
 #include <algorithm>
 #include <math.h>
 
-const int N_POINTS = 1e4, N_QUERIES = 1e6, INF = 1e9, RANGE_MAX = 100, N_PRINT = 10;
+// const int N_POINTS = 1e6, N_QUERIES = 1e7, INF = 1e9, RANGE_MAX = 100, N_PRINT = 10;
+const int N_POINTS = 50000, N_QUERIES = 2000, INF = 1e9, N_REPS = 100, RANGE_MAX = 100, N_PRINT = 10;
 
 struct int3
 {
@@ -29,26 +30,28 @@ int main()
 
     int3 *points = new int3[N_POINTS];
     int3 *tree = new int3[TREE_SIZE];
-    int3 *queries = new int3[N_QUERIES];
+    int3 *queries = new int3[N_QUERIES * N_REPS];
 
     generatePoints(points, N_POINTS);
+    auto start_build = std::chrono::system_clock::now();
     buildKDTree(points, tree, N_POINTS, TREE_SIZE);
-    generatePoints(queries, N_QUERIES);
-
+    auto end_build = std::chrono::system_clock::now();
+    float duration_build = 1000.0 * std::chrono::duration<float>(end_build - start_build).count();
+    std::cout << "Tree building time : " << duration_build << "ms\n\n";
+    generatePoints(queries, N_QUERIES * N_REPS);
 
     auto start = std::chrono::system_clock::now();
 
     int3 *results = new int3[N_QUERIES];
-    for (int i = 0; i < N_QUERIES; i++)
-    {
-        results[i] = findNearestNeighbor(tree, TREE_SIZE, 1, 0, queries[i]);
-    }
+    for (int u = 0; u < N_REPS; ++u)
+        for (int i = 0; i < N_QUERIES; i++)
+            results[i] = findNearestNeighbor(tree, TREE_SIZE, 1, 0, queries[i + N_QUERIES * u]);
 
     auto end = std::chrono::system_clock::now();
     float duration = 1000.0 * std::chrono::duration<float>(end - start).count();
 
     printResults(queries, results, N_PRINT);
-    std::cout << "Elapsed time in milliseconds : " << duration << "ms\n\n";
+    std::cout << "Elapsed time : " << duration << "ms\n\n";
 }
 
 void print(int3 *points, int n)
@@ -64,7 +67,7 @@ void generatePoints(int3 *points, int n)
 {
     for (int i = 0; i < n; i++)
     {
-        points[i] = {.x = rand() % RANGE_MAX+1, .y = rand() % RANGE_MAX+1, .z = rand() % RANGE_MAX+1};
+        points[i] = {.x = rand() % RANGE_MAX + 1, .y = rand() % RANGE_MAX + 1, .z = rand() % RANGE_MAX + 1};
     }
 }
 
@@ -84,13 +87,13 @@ void buildSubTree(int3 *points, int3 *tree, int start, int end, int depth, int n
         return;
     }
 
-    std::sort(points + start, points + end, [depth](int3 p1, int3 p2) -> bool {
+    std::sort(points + start, points + end, [depth](int3 p1, int3 p2) -> bool
+              {
         if (depth % 3 == 0)
             return p1.x < p2.x;
         if (depth % 3 == 1)
             return p1.y < p2.y;
-        return p1.z < p2.z;
-    });
+        return p1.z < p2.z; });
 
     int split = (start + end - 1) / 2;
 
@@ -150,11 +153,13 @@ int3 findNearestNeighbor(int3 *tree, int treeSize, int treeNode, int depth, int3
     return node;
 }
 
-void printResults(int3 *queries, int3 *results, int n) {
-    for(int i = 0; i < n; i++) {
-        std::cout<<"query: ["<<queries[i].x<<", "<<queries[i].y<<", "<<queries[i].z<<"] ";
-        std::cout<<", result: ["<<results[i].x<<", "<<results[i].y<<", "<<results[i].z<<"] ";
-        std::cout<<", distance: "<<sqrt(pow(queries[i].x - results[i].x, 2) + pow(queries[i].y - results[i].y, 2) + pow(queries[i].z - results[i].z, 2));
-        std::cout<<std::endl;
+void printResults(int3 *queries, int3 *results, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        std::cout << "query: [" << queries[i].x << ", " << queries[i].y << ", " << queries[i].z << "] ";
+        std::cout << ", result: [" << results[i].x << ", " << results[i].y << ", " << results[i].z << "] ";
+        std::cout << ", distance: " << sqrt(pow(queries[i].x - results[i].x, 2) + pow(queries[i].y - results[i].y, 2) + pow(queries[i].z - results[i].z, 2));
+        std::cout << std::endl;
     }
 }

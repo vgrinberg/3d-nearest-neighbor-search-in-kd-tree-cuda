@@ -4,15 +4,23 @@
 #include <algorithm>
 #include <math.h>
 
-#define eChk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
-   if (code != cudaSuccess) {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
+#define eChk(ans)                             \
+    {                                         \
+        gpuAssert((ans), __FILE__, __LINE__); \
+    }
+
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
+{
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort)
+            exit(code);
+    }
 }
 
-const int N_POINTS = 1e4, N_QUERIES = 1e6, INF = 1e9, RANGE_MAX = 100, N_PRINT = 10;
+// const int N_POINTS = 1e7, N_QUERIES = 1e8, INF = 1e9, RANGE_MAX = 100, N_PRINT = 10;
+const int N_POINTS = 20000, N_QUERIES = 2000, INF = 1e9, N_REPS = 100, RANGE_MAX = 100, N_PRINT = 10;
 
 __host__ void print(int3 *points, int n);
 __host__ void generatePoints(int3 *points, int n);
@@ -20,11 +28,13 @@ __host__ void buildKDTree(int3 *points, int3 *tree, int n, int m);
 __global__ void nearestNeighborGPU(int3 *tree, int treeSize, int3 *queries, int3 *results, int nQueries);
 __host__ void printResults(int3 *queries, int3 *results, int start, int end);
 
-int main() {
-    srand(16);
+int main()
+{
+    srand(17);
 
     int TREE_SIZE = 1;
-    while(TREE_SIZE < N_POINTS) TREE_SIZE <<= 1;
+    while (TREE_SIZE < N_POINTS)
+        TREE_SIZE <<= 1;
 
     int3 *points;
     int3 *tree;
@@ -32,24 +42,28 @@ int main() {
 
     eChk(cudaMallocManaged(&points, N_POINTS * sizeof(int3)));
     eChk(cudaMallocManaged(&tree, TREE_SIZE * sizeof(int3)));
-    eChk(cudaMallocManaged(&queries, N_QUERIES * sizeof(int3)));
+    eChk(cudaMallocManaged(&queries, N_QUERIES * N_REPS * sizeof(int3)));
 
     generatePoints(points, N_POINTS);
     buildKDTree(points, tree, N_POINTS, TREE_SIZE);
-    generatePoints(queries, N_QUERIES);
+    generatePoints(queries, N_QUERIES * N_REPS);
 
     auto start = std::chrono::system_clock::now();
 
     int3 *results;
     eChk(cudaMallocManaged(&results, N_QUERIES * sizeof(int3)));
 
-    nearestNeighborGPU<<<32768, 32>>>(tree, TREE_SIZE, queries, results, N_QUERIES);
-    eChk(cudaDeviceSynchronize());
-    
+    for (int u = 0; u < N_REPS; ++u)
+    {
+        // nearestNeighborGPU<<<32768, 32>>>(tree, TREE_SIZE, queries + u * N_QUERIES, results, N_QUERIES);
+        nearestNeighborGPU<<<256, 64>>>(tree, TREE_SIZE, queries + u * N_QUERIES, results, N_QUERIES);
+        eChk(cudaDeviceSynchronize());
+    }
+
     auto end = std::chrono::system_clock::now();
     float duration = 1000.0 * std::chrono::duration<float>(end - start).count();
 
-    printResults(queries, results, N_QUERIES-N_PRINT-1, N_QUERIES);
+    printResults(queries, results, N_QUERIES - N_PRINT - 1, N_QUERIES);
 
     std::cout << "Elapsed time in milliseconds : " << duration << "ms\n\n";
 
@@ -59,41 +73,49 @@ int main() {
     eChk(cudaFree(queries));
 }
 
-__host__ void generatePoints(int3 *points, int n) {
-    for(int i = 0; i < n; i++) {
-        points[i] = make_int3(rand()%RANGE_MAX+1, rand()%RANGE_MAX+1, rand()%RANGE_MAX+1);
+__host__ void generatePoints(int3 *points, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        points[i] = make_int3(rand() % RANGE_MAX + 1, rand() % RANGE_MAX + 1, rand() % RANGE_MAX + 1);
     }
 }
 
-__host__ void buildSubTree(int3 *points, int3 *tree, int start, int end, int depth, int node) {
-    if(start >= end) return;
+__host__ void buildSubTree(int3 *points, int3 *tree, int start, int end, int depth, int node)
+{
+    if (start >= end)
+        return;
 
-    std::sort(points + start, points + end, [depth](int3 p1, int3 p2) -> bool {
+    std::sort(points + start, points + end, [depth](int3 p1, int3 p2) -> bool
+              {
         if(depth % 3 == 0) return p1.x < p2.x;
         if(depth % 3 == 1) return p1.y < p2.y;
-        return p1.z < p2.z;
-    });
+        return p1.z < p2.z; });
 
-    int split = (start + end - 1)/2;
+    int split = (start + end - 1) / 2;
     tree[node] = points[split];
 
-    buildSubTree(points, tree, start, split, depth+1, node*2);
-    buildSubTree(points, tree, split + 1, end, depth+1, node*2 + 1);
+    buildSubTree(points, tree, start, split, depth + 1, node * 2);
+    buildSubTree(points, tree, split + 1, end, depth + 1, node * 2 + 1);
 }
 
-__host__ void buildKDTree(int3 *points, int3 *tree, int n, int treeSize) {
-    for(int i = 0; i < treeSize; i++) {
+__host__ void buildKDTree(int3 *points, int3 *tree, int n, int treeSize)
+{
+    for (int i = 0; i < treeSize; i++)
+    {
         tree[i] = make_int3(-INF, -INF, -INF);
     }
 
     buildSubTree(points, tree, 0, n, 0, 1);
 }
 
-void print(int3 *points, int n) {
-    for(int i = 0; i < n; i++) {
-        std::cout<<"["<<points[i].x<<", "<<points[i].y<<", "<<points[i].z<<"] ";
+void print(int3 *points, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        std::cout << "[" << points[i].x << ", " << points[i].y << ", " << points[i].z << "] ";
     }
-    std::cout<<std::endl;
+    std::cout << std::endl;
 }
 
 __device__ int3 getCloser(int3 p, int3 p2, int3 p3)
@@ -105,7 +127,7 @@ __device__ int3 getCloser(int3 p, int3 p2, int3 p3)
     return p3;
 }
 
-__device__ int3 findNearestNeighbor(int3 *tree, int treeSize, int treeNode, int depth, int3 query) 
+__device__ int3 findNearestNeighbor(int3 *tree, int treeSize, int treeNode, int depth, int3 query)
 {
     int3 node = tree[treeNode];
 
@@ -145,19 +167,23 @@ __device__ int3 findNearestNeighbor(int3 *tree, int treeSize, int treeNode, int 
     return node;
 }
 
-__global__ void nearestNeighborGPU(int3 *tree, int treeSize, int3 *queries, int3 *results, int nQueries) {
+__global__ void nearestNeighborGPU(int3 *tree, int treeSize, int3 *queries, int3 *results, int nQueries)
+{
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if(index < nQueries) {
+    if (index < nQueries)
+    {
         results[index] = findNearestNeighbor(tree, treeSize, 1, 0, queries[index]);
     }
 }
 
-__host__ void printResults(int3 *queries, int3 *results, int start, int end) {
-    for(int i = start; i < end; i++) {
-        std::cout<<"query: ["<<queries[i].x<<", "<<queries[i].y<<", "<<queries[i].z<<"] ";
-        std::cout<<", result: ["<<results[i].x<<", "<<results[i].y<<", "<<results[i].z<<"] ";
-        std::cout<<", distance: "<<sqrt(pow(queries[i].x - results[i].x, 2) + pow(queries[i].y - results[i].y, 2) + pow(queries[i].z - results[i].z, 2));
-        std::cout<<std::endl;
+__host__ void printResults(int3 *queries, int3 *results, int start, int end)
+{
+    for (int i = start; i < end; i++)
+    {
+        std::cout << "query: [" << queries[i].x << ", " << queries[i].y << ", " << queries[i].z << "] ";
+        std::cout << ", result: [" << results[i].x << ", " << results[i].y << ", " << results[i].z << "] ";
+        std::cout << ", distance: " << sqrt(pow(queries[i].x - results[i].x, 2) + pow(queries[i].y - results[i].y, 2) + pow(queries[i].z - results[i].z, 2));
+        std::cout << std::endl;
     }
 }
