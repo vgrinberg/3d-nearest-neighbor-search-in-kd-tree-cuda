@@ -20,7 +20,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
 }
 
 // const int N_POINTS = 1e7, N_QUERIES = 1e8, INF = 1e9, RANGE_MAX = 100, N_PRINT = 10;
-const int N_POINTS = 20000, N_QUERIES = 2000, INF = 1e9, N_REPS = 100, RANGE_MAX = 100, N_PRINT = 10;
+const int N_POINTS = 50000, N_QUERIES = 2000, INF = 1e9, N_REPS = 100, RANGE_MAX = 100, N_PRINT = 10;
 
 __host__ void print(int3 *points, int n);
 __host__ void generatePoints(int3 *points, int n);
@@ -43,9 +43,12 @@ int main()
     eChk(cudaMallocManaged(&points, N_POINTS * sizeof(int3)));
     eChk(cudaMallocManaged(&tree, TREE_SIZE * sizeof(int3)));
     eChk(cudaMallocManaged(&queries, N_QUERIES * N_REPS * sizeof(int3)));
-
     generatePoints(points, N_POINTS);
+    auto start_build = std::chrono::system_clock::now();
     buildKDTree(points, tree, N_POINTS, TREE_SIZE);
+    auto end_build = std::chrono::system_clock::now();
+    float duration_build = 1000.0 * std::chrono::duration<float>(end_build - start_build).count();
+    std::cout << "Tree building time : " << duration_build << "ms\n\n";
     generatePoints(queries, N_QUERIES * N_REPS);
 
     auto start = std::chrono::system_clock::now();
@@ -92,7 +95,8 @@ __host__ void buildSubTree(int3 *points, int3 *tree, int start, int end, int dep
         if(depth % 3 == 1) return p1.y < p2.y;
         return p1.z < p2.z; });
 
-    int split = (start + end - 1) / 2;
+    // int split = (start + end - 1) / 2;
+    int split = start + (end - start) / 2;
     tree[node] = points[split];
 
     buildSubTree(points, tree, start, split, depth + 1, node * 2);

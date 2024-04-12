@@ -95,8 +95,8 @@ void buildSubTree(int3 *points, int3 *tree, int start, int end, int depth, int n
             return p1.y < p2.y;
         return p1.z < p2.z; });
 
-    int split = (start + end - 1) / 2;
-
+    // int split = (start + end - 1) / 2;
+    int split = start + (end - start) / 2;
     tree[node] = points[split];
 
     buildSubTree(points, tree, start, split, depth + 1, node * 2);
@@ -107,7 +107,7 @@ void buildKDTree(int3 *points, int3 *tree, int n, int treeSize)
 {
     for (int i = 0; i < treeSize; i++)
     {
-        tree[i] = {.x = INF, .y = -INF, .z = -INF};
+        tree[i] = {.x = -INF, .y = -INF, .z = -INF};
     }
 
     buildSubTree(points, tree, 0, n, 0, 1);

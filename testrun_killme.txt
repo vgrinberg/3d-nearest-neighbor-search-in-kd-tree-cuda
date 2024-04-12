@@ -1,0 +1,32 @@
+user@tm-cd1:~/test/3d-nearest-neighbor-search-in-kd-tree-cuda$ ./run.sh 
+ptxas warning : Stack size for entry function '_Z18nearestNeighborGPUP4int3iS0_S0_i' cannot be statically determined
+CPU implementation:
+Tree building time : 49.0809ms
+
+query: [38, 34, 37] , result: [61, 50, 67] , distance: 41.0488
+query: [39, 13, 13] , result: [51, 78, 99] , distance: 108.467
+query: [50, 74, 13] , result: [51, 78, 99] , distance: 86.0988
+query: [9, 27, 77] , result: [38, 82, 51] , distance: 67.3944
+query: [27, 90, 52] , result: [51, 78, 99] , distance: 54.1202
+query: [82, 42, 27] , result: [61, 50, 67] , distance: 45.8803
+query: [66, 11, 62] , result: [38, 82, 51] , distance: 77.1103
+query: [56, 3, 100] , result: [51, 78, 99] , distance: 75.1731
+query: [67, 39, 41] , result: [61, 50, 67] , distance: 28.8617
+query: [32, 80, 76] , result: [17, 51, 81] , distance: 33.0303
+Elapsed time : 32.535ms
+
+GPU implementation:
+query: [2, 66, 65] , result: [72, 39, 51] , distance: 76.3217
+query: [44, 43, 23] , result: [72, 39, 51] , distance: 39.7995
+query: [74, 38, 44] , result: [35, 54, 50] , distance: 42.5793
+query: [23, 78, 5] , result: [31, 44, 50] , distance: 56.9649
+query: [31, 89, 1] , result: [72, 39, 51] , distance: 81.7374
+query: [7, 1, 77] , result: [35, 54, 50] , distance: 65.7419
+query: [2, 84, 7] , result: [31, 44, 50] , distance: 65.4981
+query: [21, 32, 81] , result: [51, 33, 1] , distance: 85.4459
+query: [9, 75, 29] , result: [51, 33, 1] , distance: 65.6658
+query: [56, 28, 63] , result: [51, 33, 1] , distance: 62.4019
+query: [74, 44, 80] , result: [62, 67, 51] , distance: 38.9102
+Elapsed time in milliseconds : 5.57138ms
+
+user@tm-cd1:~/test/3d-nearest-neighbor-search-in-kd-tree-cuda$ 
